@@ -13,6 +13,7 @@ import {
 import Contact from "../../models/Contact";
 import Ticket from "../../models/Ticket";
 import Message from "../../models/Message";
+import Setting from "../../models/Setting";
 
 import { getIO } from "../../libs/socket";
 import CreateMessageService from "../MessageServices/CreateMessageService";
@@ -84,50 +85,65 @@ const verifyMediaMessage = async (
 ): Promise<Message> => {
   const quotedMsg = await verifyQuotedMessage(msg);
 
-  const media = await msg.downloadMedia();
+  // Check if auto download is enabled (default: true for backward compatibility)
+  const setting = await Setting.findOne({ where: { key: "autoDownloadMedia" } });
+  const autoDownload = setting ? setting.value === "enabled" : true;
 
-  if (!media) {
-    throw new Error("ERR_WAPP_DOWNLOAD_MEDIA");
-  }
+  let mediaUrl = "";
+  let mediaType = "chat";
 
-  let randomId = makeRandomId(5);
+  if (autoDownload) {
+    const media = await msg.downloadMedia();
 
-  if (!media.filename) {
-    const ext = media.mimetype.split("/")[1].split(";")[0];
-    media.filename = `${randomId}-${new Date().getTime()}.${ext}`;
+    if (!media) {
+      throw new Error("ERR_WAPP_DOWNLOAD_MEDIA");
+    }
+
+    let randomId = makeRandomId(5);
+
+    if (!media.filename) {
+      const ext = media.mimetype.split("/")[1].split(";")[0];
+      media.filename = `${randomId}-${new Date().getTime()}.${ext}`;
+    } else {
+      media.filename =
+        media.filename.split(".").slice(0, -1).join(".") +
+        "." +
+        randomId +
+        "." +
+        media.filename.split(".").slice(-1);
+    }
+
+    try {
+      await writeFileAsync(
+        join(__dirname, "..", "..", "..", "public", media.filename),
+        media.data,
+        "base64"
+      );
+    } catch (err) {
+      Sentry.captureException(err);
+      logger.error(err);
+    }
+
+    mediaUrl = media.filename;
+    mediaType = media.mimetype.split("/")[0];
   } else {
-    media.filename =
-      media.filename.split(".").slice(0, -1).join(".") +
-      "." +
-      randomId +
-      "." +
-      media.filename.split(".").slice(-1);
-  }
-
-  try {
-    await writeFileAsync(
-      join(__dirname, "..", "..", "..", "public", media.filename),
-      media.data,
-      "base64"
-    );
-  } catch (err) {
-    Sentry.captureException(err);
-    logger.error(err);
+    // If auto download is disabled, just store message info without downloading
+    mediaType = msg.type;
   }
 
   const messageData = {
     id: msg.id.id,
     ticketId: ticket.id,
     contactId: msg.fromMe ? undefined : contact.id,
-    body: msg.body || media.filename,
+    body: msg.body || (autoDownload ? mediaUrl : `[${msg.type}]`),
     fromMe: msg.fromMe,
     read: msg.fromMe,
-    mediaUrl: media.filename,
-    mediaType: media.mimetype.split("/")[0],
+    mediaUrl: autoDownload ? mediaUrl : "",
+    mediaType: mediaType,
     quotedMsgId: quotedMsg?.id
   };
 
-  await ticket.update({ lastMessage: msg.body || media.filename });
+  await ticket.update({ lastMessage: msg.body || (autoDownload ? mediaUrl : `[${msg.type}]`) });
   const newMessage = await CreateMessageService({ messageData });
 
   return newMessage;

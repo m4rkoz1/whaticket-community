@@ -16,12 +16,18 @@ _addSslConfig() {
 
     if [ -f ${SSL_CERTIFICATE} ] && [ -f ${SSL_CERTIFICATE_KEY} ]; then
         echo "saving ssl config in ${FILE_CONF}"
-        echo 'include include.d/ssl-redirect.conf;' >> ${FILE_SSL_CONF};
-        echo 'include "include.d/ssl.conf";' >> ${FILE_CONF};
-        echo "ssl_certificate ${SSL_CERTIFICATE};" >> ${FILE_CONF};
-        echo "ssl_certificate_key ${SSL_CERTIFICATE_KEY};" >> ${FILE_CONF};
+        if ! grep -q 'include include.d/ssl-redirect.conf;' ${FILE_SSL_CONF} 2>/dev/null; then
+            echo 'include include.d/ssl-redirect.conf;' >> ${FILE_SSL_CONF};
+        fi
+        if ! grep -q 'include "include.d/ssl.conf";' ${FILE_CONF}; then
+            echo 'include "include.d/ssl.conf";' >> ${FILE_CONF};
+            echo "ssl_certificate ${SSL_CERTIFICATE};" >> ${FILE_CONF};
+            echo "ssl_certificate_key ${SSL_CERTIFICATE_KEY};" >> ${FILE_CONF};
+        fi
     else
-        echo 'listen 80;' >> ${FILE_CONF};
+        if ! grep -q 'listen 80;' ${FILE_CONF}; then
+            echo 'listen 80;' >> ${FILE_CONF};
+        fi
         echo "ssl ${1} not found >> ${SSL_CERTIFICATE} -> ${SSL_CERTIFICATE_KEY}"
     fi;
 }

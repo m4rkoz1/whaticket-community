@@ -88,8 +88,8 @@ const Settings = () => {
 	};
 
 	const getSettingValue = key => {
-		const { value } = settings.find(s => s.key === key);
-		return value;
+		const setting = settings.find(s => s.key === key);
+		return setting ? setting.value : "";
 	};
 
 	return (
@@ -134,6 +134,31 @@ const Settings = () => {
 						fullWidth
 						value={settings && settings.length > 0 && getSettingValue("userApiToken")}
 					/>
+				</Paper>
+
+				<Paper className={classes.paper}>
+					<Typography variant="body1">
+						Download Automático de Mídia
+					</Typography>
+					<Select
+						margin="dense"
+						variant="outlined"
+						native
+						id="autoDownloadMedia-setting"
+						name="autoDownloadMedia"
+						value={
+							settings && settings.length > 0 && getSettingValue("autoDownloadMedia")
+						}
+						className={classes.settingOption}
+						onChange={handleChangeSetting}
+					>
+						<option value="enabled">
+							{i18n.t("settings.settings.userCreation.options.enabled")}
+						</option>
+						<option value="disabled">
+							{i18n.t("settings.settings.userCreation.options.disabled")}
+						</option>
+					</Select>
 				</Paper>
 
 			</Container>

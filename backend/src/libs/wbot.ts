@@ -5,6 +5,8 @@ import Whatsapp from "../models/Whatsapp";
 import AppError from "../errors/AppError";
 import { logger } from "../utils/logger";
 import { handleMessage } from "../services/WbotServices/wbotMessageListener";
+import fs from "fs";
+import path from "path";
 
 interface Session extends Client {
   id?: number;
@@ -45,14 +47,25 @@ export const initWbot = async (whatsapp: Whatsapp): Promise<Session> => {
 
       const args: String = process.env.CHROME_ARGS || "";
 
+      const chId = "bd_" + whatsapp.id;
+      const basePath = path.join(process.cwd(), ".wwebjs_auth", `session-${chId}`);
+      const lock1 = path.join(basePath, "SingletonLock");
+      const lock2 = path.join(basePath, "SingletonCookie");
+      const lock3 = path.join(basePath, "Default", "SingletonLock");
+      const lock4 = path.join(basePath, "Default", "SingletonCookie");
+      
+      [lock1, lock2, lock3, lock4].forEach(lock => {
+        try { if (fs.existsSync(lock)) fs.unlinkSync(lock); } catch (e) {}
+      });
+
       const wbot: Session = new Client({
         session: sessionCfg,
-        authStrategy: new LocalAuth({ clientId: "bd_" + whatsapp.id }),
+        authStrategy: new LocalAuth({ clientId: chId }),
         puppeteer: {
           executablePath: process.env.CHROME_BIN || undefined,
           // @ts-ignore
           browserWSEndpoint: process.env.CHROME_WS || undefined,
-          args: args.split(" ")
+          args: args.split(" ").filter(i => i)
         }
       });
 

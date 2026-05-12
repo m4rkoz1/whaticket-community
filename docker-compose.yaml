@@ -22,6 +22,7 @@ services:
       - PROXY_PORT=${PROXY_PORT:-8080}
       - CHROME_ARGS=--no-sandbox --disable-setuid-sandbox
       - CHROME_BIN=${CHROME_BIN:-/usr/bin/google-chrome-stable}
+      - AUTO_DOWNLOAD_MEDIA=${AUTO_DOWNLOAD_MEDIA:-true}
     ports:
       - ${BACKEND_PORT:-8080}:3000
     volumes:
