@@ -71,6 +71,8 @@ const useAuth = () => {
 	}, []);
 
 	useEffect(() => {
+		if (!user.id) return;
+
 		const socket = openSocket();
 
 		socket.on("user", data => {

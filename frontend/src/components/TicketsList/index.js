@@ -4,6 +4,9 @@ import openSocket from "../../services/socket-io";
 import { makeStyles } from "@material-ui/core/styles";
 import List from "@material-ui/core/List";
 import Paper from "@material-ui/core/Paper";
+import IconButton from "@material-ui/core/IconButton";
+import Tooltip from "@material-ui/core/Tooltip";
+import GroupIcon from "@material-ui/icons/Group";
 
 import TicketListItem from "../TicketListItem";
 import TicketsListSkeleton from "../TicketsListSkeleton";
@@ -152,12 +155,13 @@ const reducer = (state, action) => {
 	}
 };
 
-	const TicketsList = (props) => {
-		const { status, searchParam, showAll, selectedQueueIds, updateCount, style } =
-			props;
+const TicketsList = (props) => {
+	const { status, searchParam, showAll, selectedQueueIds, updateCount, style } =
+		props;
 	const classes = useStyles();
 	const [pageNumber, setPageNumber] = useState(1);
 	const [ticketsList, dispatch] = useReducer(reducer, []);
+	const [hideGroups, setHideGroups] = useState(false);
 	const { user } = useContext(AuthContext);
 
 	useEffect(() => {
@@ -247,11 +251,11 @@ const reducer = (state, action) => {
 	}, [status, searchParam, showAll, user, selectedQueueIds]);
 
 	useEffect(() => {
-    if (typeof updateCount === "function") {
-      updateCount(ticketsList.length);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticketsList]);
+		if (typeof updateCount === "function") {
+			updateCount(ticketsList.length);
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ticketsList]);
 
 	const loadMore = () => {
 		setPageNumber(prevState => prevState + 1);
@@ -268,8 +272,33 @@ const reducer = (state, action) => {
 		}
 	};
 
+	// Sort tickets: groups first, then by unread messages
+	const sortedTickets = [...ticketsList].sort((a, b) => {
+		// Groups always come first
+		if (a.isGroup && !b.isGroup) return -1;
+		if (!a.isGroup && b.isGroup) return 1;
+		// Within same type, sort by unread messages
+		return b.unreadMessages - a.unreadMessages;
+	});
+
+	// Filter out groups if hideGroups is true
+	const displayTickets = hideGroups
+		? sortedTickets.filter(ticket => !ticket.isGroup)
+		: sortedTickets;
+
 	return (
-    <Paper className={classes.ticketsListWrapper} style={style}>
+		<Paper className={classes.ticketsListWrapper} style={style}>
+			<div style={{ padding: '8px', borderBottom: '1px solid rgba(0, 0, 0, 0.12)', display: 'flex', justifyContent: 'flex-end' }}>
+				<Tooltip title={hideGroups ? "Mostrar Grupos" : "Ocultar Grupos"}>
+					<IconButton
+						size="small"
+						onClick={() => setHideGroups(!hideGroups)}
+						style={{ color: hideGroups ? '#999' : '#2576d2' }}
+					>
+						<GroupIcon />
+					</IconButton>
+				</Tooltip>
+			</div>
 			<Paper
 				square
 				name="closed"
@@ -289,7 +318,7 @@ const reducer = (state, action) => {
 						</div>
 					) : (
 						<>
-							{ticketsList.map(ticket => (
+							{displayTickets.map(ticket => (
 								<TicketListItem ticket={ticket} key={ticket.id} />
 							))}
 						</>
@@ -297,7 +326,7 @@ const reducer = (state, action) => {
 					{loading && <TicketsListSkeleton />}
 				</List>
 			</Paper>
-    </Paper>
+		</Paper>
 	);
 };
 
